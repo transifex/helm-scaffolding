@@ -1,0 +1,172 @@
+imageRepository: ""
+
+serviceAccount:
+  create: true
+# The service account that the application will use
+
+# The serviceAccount object should have the following attributes
+# name str (optional): The name of the service account
+# create bool (defaults `true`): Whether to create a ServiceAccount or use an existing one
+
+# serviceAccount:
+#   name: my-account
+#   create: false
+
+
+web: {}
+# The web pod serving the website
+
+# The web object should have the following attributes
+
+# command str: The management command to run
+# commandArgs list(str) (optional): Extra arguments for the management commands
+# replicas int: The number of the worker replicas
+# env dict(str) (optional): Environmental variables for the pod
+# deploymentAnnotations dict(str) (optional): Annotations for the deployment
+# podAnnotations dict(str) (optional): Annotations for the pod
+# requestsCpu str: The cpu requests of the pod
+# requestsMemory str: The memory requests of the pod
+# limitsCpu str: The cpu limits of the pod
+# limitsMemory str: The memory limits of the pod
+
+
+# Example:
+
+# web:
+#   replicas: 1
+#   command:
+#     - "/usr/local/bin/uwsgi"
+#   commandArgs:
+#     - "--ini"
+#     - "./uwsgi.ini"
+#   containerPort: 8080
+#   requestsCpu: 100m
+#   requestsMemory: 200Mi
+#   limitsCpu: 200m
+#   limitsMemory: 500Mi
+
+worker: {}
+# The worker pod consuming tasks
+
+# The worker object should have the following attributes
+
+# command list(str): The command to run
+# commandArgs list(str) (optional): Extra arguments for the command
+# replicas int: The number of the worker replicas
+# env dict(str) (optional): Environmental variables for the pod
+# deploymentAnnotations dict(str) (optional): Annotations for the deployment
+# podAnnotations dict(str) (optional): Annotations for the pod
+# requestsCpu str: The cpu requests of the pod
+# requestsMemory str: The memory requests of the pod
+# limitsCpu str: The cpu limits of the pod
+# limitsMemory str: The memory limits of the pod
+
+
+# Example:
+
+# worker:
+#   replicas: 1
+#   env:
+#     WORKER_ONLY_ENV: "hello"
+#   command:
+#     - "/usr/local/bin/uwsgi"
+#   commandArgs:
+#     - "worker"
+#     - "--app=your_app.celery_worker.celery_client"
+#     - "--loglevel=INFO"
+#   containerPort: 8080
+#   requestsCpu: 100m
+#   requestsMemory: 200Mi
+#   limitsCpu: 200m
+#   limitsMemory: 500Mi
+
+crons: []
+# A list of crons that should run at a schedule
+
+# A cron object should have the following attributes:
+
+# name str: The name to give the job
+# command list(str): The command to run
+# commandArgs list(str) (optional): Extra arguments for the command
+# env dict(str) (optional): Environmental variables for the pod
+# cronAnnotations dict(str) (optional): Annotations for the cron
+# podAnnotations dict(str) (optional): Annotations for the pod
+# schedule str: A string representing the schedule in cron format
+# requestsCpu str: The cpu requests of the pod
+# requestsMemory str: The memory requests of the pod
+# limitsCpu str: The cpu limits of the pod
+# limitsMemory str: The memory limits of the pod
+
+# Example:
+
+# crons:
+#   - name: one-command
+#     command: echo
+#     commandArgs:
+#       - hello
+#     schedule: "0 22 * * *"
+#     requestsCpu: 10m
+#     requestsMemory: 200Mi
+#     limitsCpu: 100m
+#     limitsMemory: 400Mi
+#
+#   - name: other-command
+#     command: ls
+#     schedule: "1 2 * * *"
+#     env:
+#       ENV_VAR: "ENV_VALUE"
+#     requestsCpu: 20m
+#     requestsMemory: 400Mi
+#     limitsCpu: 200m
+#     limitsMemory: 800Mi
+
+
+ingress:
+  hostNames: []
+  certificateArns: []
+  annotations: []
+# The ingress object.
+
+# The ingress object should have the following settings
+
+# name str: The name to give the job
+# hostNames list(str): The allowed hostnames
+# certificateArns list(str) (optional): The arn of the certificate
+# annotations dict(str) (optional): Annotations for the ingress
+
+# Example:
+
+# ingress:
+#   hostNames:
+#   - example.com
+#   - www.example.com
+#   certificateArns:
+#   - arn:aws:acm:{your_region}:{organization_id}:certificate/{certificate_id}
+#   annotations:
+#     my-annotation: hi
+
+
+config: {}
+# The environment variables of the containers (web, worker)
+# as key value pairs
+
+# Example:
+# config:
+#   POSTGRES_HOST: "10.0.1.1"
+#   POSTGRES_PORT: 5432
+#   POSTGRES_DB: "my_db"
+#   POSTGRES_USER: "my_user"
+#   REDIS_DB_URL: "redis://10.0.21.165:6379/3"
+
+
+secrets: {}
+# The secrets mounted as files in the containers (web, workers, crons, jobs)
+# as key value pairs
+
+# Example:
+
+# secrets:
+#   postgres-password: PG_PASSWORD
+#   other-postgres-password: OTHER_PG_PASSWORD
+#   my-secret: MY_SECRET
+#   live-fastly-key: LIVE_FASTLY_KEY

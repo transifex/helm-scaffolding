@@ -1,0 +1,84 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "tx.workerName" . }}
+  labels:
+{{ include "tx.commonLabels" . | indent 4 }}
+    app.kubernetes.io/component: worker
+  {{- if .Values.worker.deploymentAnnotations }}
+  annotations:
+{{ toYaml .Values.worker.deploymentAnnotations | indent 4 }}
+  {{- end }}
+spec:
+  replicas: {{ .Values.worker.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: worker
+  template:
+    metadata:
+      labels:
+{{ include "tx.commonLabels" . | indent 8 }}
+        app.kubernetes.io/component: worker
+      annotations:
+        # We annotate the checksum of the config
+        # so pods are updated when the config changes
+        checksum/config: {{ include "tx.configCheckSum" . }}
+        {{- if .Values.worker.podAnnotations }}
+{{ toYaml .Values.worker.podAnnotations | indent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "tx.serviceAccountName" . }}
+      volumes:
+        - name: {{ include "tx.secretName" . }}
+          secret:
+            secretName: {{ include "tx.secretName" . }}
+      # Required to read AWS token
+      securityContext:
+        runAsGroup: 10001
+        runAsUser: 10001
+        fsGroup: 10001
+      containers:
+        - name: {{ include "tx.workerName" . }}
+          image: "{{ .Values.imageRepository }}:{{ .Values.version }}"
+          imagePullPolicy: "IfNotPresent"
+          resources:
+            requests:
+              cpu: {{ .Values.worker.requestsCpu }}
+              memory: {{ .Values.worker.requestsMemory }}
+            limits:
+              cpu: {{ .Values.worker.limitsCpu }}
+              memory: {{ .Values.worker.limitsMemory }}
+          command:
+            {{- range .Values.worker.command }}
+            - {{ . | quote }}
+            {{- end }}
+          {{- if .Values.worker.commandArgs }}
+          args:
+            {{- range .Values.worker.commandArgs }}
+            - {{ . | quote }}
+            {{- end }}
+          {{- end }}
+          # env will take precedence over envFrom
+          {{- if .Values.worker.env}}
+          env:
+            {{- range $envName, $envValue := .Values.worker.env }}
+            - name: {{ $envName }}
+              value: {{ $envValue | quote }}
+            {{- end }}
+          {{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "tx.configName" . }}
+          volumeMounts:
+            - name: {{ include "tx.secretName" . }}
+              readOnly: true
+              mountPath: "/etc/secrets-volume"
+          # Include a preStop hook with a shutdown delay for eventual consistency reasons.
+          # See https://blog.gruntwork.io/delaying-shutdown-to-wait-for-pod-deletion-propagation-445f779a8304
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - sleep
+                  - "5"

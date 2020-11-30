@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "tx.webName" . }}
+  labels:
+{{ include "tx.commonLabels" . | indent 4 }}
+    app.kubernetes.io/component: web
+  {{- if .Values.web.deploymentAnnotations }}
+  annotations:
+{{ toYaml .Values.web.deploymentAnnotations | indent 4 }}
+  {{- end }}
+spec:
+  replicas: {{ .Values.web.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/component: web
+  template:
+    metadata:
+      labels:
+{{ include "tx.commonLabels" . | indent 8 }}
+        app.kubernetes.io/component: web
+      annotations:
+        # We annotate the checksum of the config
+        # so pods are updated when the config changes
+        checksum/config: {{ include "tx.configCheckSum" . }}
+        {{- if .Values.web.podAnnotations }}
+{{ toYaml .Values.web.podAnnotations | indent 8 }}
+        {{- end }}
+    spec:
+      serviceAccountName: {{ include "tx.serviceAccountName" . }}
+      volumes:
+        - name: {{ include "tx.secretName" . }}
+          secret:
+            secretName: {{ include "tx.secretName" . }}
+      # Required to read AWS token
+      securityContext:
+        runAsGroup: 10001
+        runAsUser: 10001
+        fsGroup: 10001
+      containers:
+        - name: {{ include "tx.webName" . }}
+          image: "{{ .Values.imageRepository }}:{{ .Values.version }}"
+          imagePullPolicy: "IfNotPresent"
+          resources:
+            requests:
+              cpu: {{ .Values.web.requestsCpu }}
+              memory: {{ .Values.web.requestsMemory }}
+            limits:
+              cpu: {{ .Values.web.limitsCpu }}
+              memory: {{ .Values.web.limitsMemory }}
+          command:
+            {{- range .Values.web.command }}
+            - {{ . | quote }}
+            {{- end }}
+          {{- if .Values.web.commandArgs }}
+          args:
+            {{- range .Values.web.commandArgs }}
+            - {{ . | quote }}
+            {{- end }}
+          {{- end }}
+          ports:
+          - name: web-http
+            containerPort: {{ .Values.web.containerPort }}
+            protocol: TCP
+          {{- if .Values.web.env}}
+          # env will take precedence over envFrom
+          env:
+            {{- range $envName, $envValue := .Values.web.env }}
+            - name: {{ $envName }}
+              value: {{ $envValue | quote }}
+            {{- end }}
+          {{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ include "tx.configName" . }}
+          volumeMounts:
+            - name: {{ include "tx.secretName" . }}
+              readOnly: true
+              mountPath: "/etc/secrets-volume"
+          # Include a preStop hook with a shutdown delay for eventual consistency reasons.
+          # See https://blog.gruntwork.io/delaying-shutdown-to-wait-for-pod-deletion-propagation-445f779a8304
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - sleep
+                  - "5"

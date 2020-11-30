@@ -1,0 +1,86 @@
+{{- range .Values.crons -}}
+
+{{- $name := printf "%s-%s-cron" (include "tx.fullname" $) .name -}}
+{{- $component := printf "%s-cron" .name -}}
+
+apiVersion: batch/v1beta1
+kind: CronJob
+metadata:
+  name: {{ $name }}
+  labels:
+{{ include "tx.commonLabels" $ | indent 4 }}
+    app.kubernetes.io/component: {{ $component }}
+  {{- if .cronAnnotations }}
+  annotations:
+{{ toYaml .cronAnnotations | indent 4 }}
+  {{- end }}
+spec:
+  schedule: {{ .schedule | quote }}
+  jobTemplate:
+    metadata:
+      labels:
+{{ include "tx.commonLabels" $ | indent 8 }}
+        app.kubernetes.io/component: {{ $component }}
+    spec:
+      template:
+        metadata:
+          labels:
+{{ include "tx.commonLabels" $ | indent 12 }}
+            app.kubernetes.io/component: {{ $component }}
+          annotations:
+            # We annotate the checksum of the config
+            # so pods are updated when the config changes
+            checksum/config: {{ include "tx.configCheckSum" $ }}
+            {{- if .podAnnotations }}
+{{ toYaml .podAnnotations | indent 12 }}
+            {{- end }}
+        spec:
+          restartPolicy: OnFailure
+          serviceAccountName: {{ include "tx.serviceAccountName" $ }}
+          volumes:
+            - name: {{ include "tx.secretName" $ }}
+              secret:
+                secretName: {{ include "tx.secretName" $ }}
+          # Required to read AWS token
+          securityContext:
+            runAsGroup: 10001
+            runAsUser: 10001
+            fsGroup: 10001
+          containers:
+            - name: {{ $name }}
+              image: "{{ $.Values.imageRepository }}:{{ $.Values.version }}"
+              imagePullPolicy: "IfNotPresent"
+              resources:
+                requests:
+                  cpu: {{ .requestsCpu }}
+                  memory: {{ .requestsMemory }}
+                limits:
+                  cpu: {{ .limitsCpu }}
+                  memory: {{ .limitsMemory }}
+              command:
+                {{- range .command }}
+                - {{ . | quote }}
+                {{- end }}
+              {{- if .commandArgs }}
+              args:
+                {{- range .commandArgs }}
+                - {{ . | quote }}
+                {{- end }}
+              {{- end }}
+              # env will take precedence over envFrom
+              {{- if .env}}
+              env:
+                {{- range $envName, $envValue := .env }}
+                - name: {{ $envName }}
+                  value: {{ $envValue | quote }}
+                {{- end }}
+              {{- end }}
+              envFrom:
+                - configMapRef:
+                    name: {{ include "tx.configName" $ }}
+              volumeMounts:
+                - name: {{ include "tx.secretName" $ }}
+                  readOnly: true
+                  mountPath: "/etc/secrets-volume"
+---
+{{ end -}}

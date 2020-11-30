@@ -1,0 +1,5 @@
+appVersion: 1.0
+description: A helm configuration with multiple workers
+name: helm-multiple-workers
+applicationName: helm-multiple-workers
+version: 1.0

@@ -1,0 +1,98 @@
+
+{{/*
+Create chart name and version as used by the chart label.
+*/}}
+{{- define "tx.chart" -}}
+{{- printf "%s-%s" .Chart.Name .Chart.Version | replace "+" "_" | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+
+{{/*
+Used for name generation. Defaults to the name of the chart.
+*/}}
+{{- define "tx.name" -}}
+{{- default .Chart.Name .Values.nameOverride | trunc 63 | trimSuffix "-" -}}
+{{- end -}}
+
+{{/*
+Create a default fully qualified app name.
+We truncate at 63 chars because some Kubernetes name fields are limited to this (by the DNS naming spec).
+If the release name contains chart name it will be used as a full name.
+*/}}
+{{- define "tx.fullname" -}}
+
+{{- if .Values.fullnameOverride -}}
+{{- .Values.fullnameOverride | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+
+{{- $name := default .Chart.Name .Values.nameOverride -}}
+
+{{- if contains $name .Release.Name -}}
+{{- .Release.Name | trunc 63 | trimSuffix "-" -}}
+{{- else -}}
+
+{{- printf "%s-%s" .Release.Name $name | trunc 63 | trimSuffix "-" -}}
+
+{{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Create the name of the service account to use
+*/}}
+{{- define "tx.serviceAccountName" -}}
+
+{{- if .Values.serviceAccount.name -}}
+{{- .Values.serviceAccount.name -}}
+{{- else -}}
+{{- printf "%s-service-account" (include "tx.fullname" .) }}
+{{- end -}}
+
+{{- end -}}
+
+{{/*
+Create the name of the config to use
+*/}}
+{{- define "tx.configName" -}}
+{{- printf "%s-config" (include "tx.fullname" .) }}
+{{- end -}}
+
+{{/*
+Create the name of the secret to use
+*/}}
+{{- define "tx.secretName" -}}
+{{- printf "%s-secret" (include "tx.fullname" .) }}
+{{- end -}}
+
+{{/*
+Create the name of the web component
+*/}}
+{{- define "tx.webName" -}}
+{{- printf "%s-web" (include "tx.fullname" .) }}
+{{- end -}}
+
+{{/*
+Create the name of the worker component
+*/}}
+{{- define "tx.workerName" -}}
+{{- printf "%s-worker" (include "tx.fullname" .) }}
+{{- end -}}
+
+{{/*
+Create common labels used by all objects
+*/}}
+{{- define "tx.commonLabels" -}}
+app.kubernetes.io/name: {{ include "tx.name" . }}
+helm.sh/chart: {{ include "tx.chart" . }}
+app.kubernetes.io/managed-by: {{ .Release.Service }}
+app.kubernetes.io/instance: {{ .Release.Name }}
+app.kubernetes.io/version: {{ .Values.version | quote }}
+{{- end -}}
+
+{{/*
+Config sha256sum. Used as an annotation in the deployments to update pods
+on config change
+*/}}
+{{- define "tx.configCheckSum" -}}
+{{ toYaml .Values.config | sha256sum }}
+{{- end -}}
